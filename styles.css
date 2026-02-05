@@ -5,8 +5,8 @@
 }
 
 :root {
-    --primary: #2563eb;
-    --primary-dark: #1e40af;
+    --primary: #0e4709;
+    --primary-dark: #0e4709;
     --success: #059669;
     --danger: #dc2626;
     --secondary: #6b7280;
@@ -373,6 +373,9 @@ body {
 .syncing .sync-icon {
     animation: rotate 1s linear infinite;
 }
+#testCredsBtn {
+    display: none;
+}   
 
 @keyframes rotate {
     from { transform: rotate(0deg); }
