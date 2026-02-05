@@ -9,7 +9,6 @@ class SyncManager {
         this.DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
         this.gapiInited = false;
         this.gisInited = false;
-        this.ADDRESS_PARENT_FOLDER_ID = '1QRKhVOhMURPzUwMccImAsJCK9tFORRej';
     }
 
     async initialize() {
@@ -278,7 +277,7 @@ class SyncManager {
             for (const address of unsyncedData.addresses) {
                 const folderName = `${address.streetAddress}, ${address.city}`;
                 console.log('Creating address folder:', folderName);
-                const addressFolderId = await this.createFolder(folderName, this.ADDRESS_PARENT_FOLDER_ID);
+                const addressFolderId = await this.createFolder(folderName, rootFolderId);
                 await db.markAsSynced('addresses', address.id, addressFolderId);
                 syncedCount++;
             }
@@ -293,7 +292,7 @@ class SyncManager {
                 if (!addressFolderId) {
                     const folderName = `${address.streetAddress}, ${address.city}`;
                     console.log('Creating address folder for floor:', folderName);
-                    addressFolderId = await this.createFolder(folderName, this.ADDRESS_PARENT_FOLDER_ID);
+                    addressFolderId = await this.createFolder(folderName, rootFolderId);
                     await db.markAsSynced('addresses', address.id, addressFolderId);
                 }
                 
@@ -317,7 +316,7 @@ class SyncManager {
                     if (!addressFolderId) {
                         const folderName = `${address.streetAddress}, ${address.city}`;
                         console.log('Creating address folder for room:', folderName);
-                        addressFolderId = await this.createFolder(folderName, this.ADDRESS_PARENT_FOLDER_ID);
+                        addressFolderId = await this.createFolder(folderName, rootFolderId);
                         await db.markAsSynced('addresses', address.id, addressFolderId);
                     }
                     
@@ -350,7 +349,7 @@ class SyncManager {
                     if (!addressFolderId) {
                         const folderName = `${address.streetAddress}, ${address.city}`;
                         console.log('Creating address folder for photo:', folderName);
-                        addressFolderId = await this.createFolder(folderName, this.ADDRESS_PARENT_FOLDER_ID);
+                        addressFolderId = await this.createFolder(folderName, rootFolderId);
                         await db.markAsSynced('addresses', address.id, addressFolderId);
                     }
                     
