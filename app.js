@@ -59,6 +59,86 @@ class App {
 
         // Sync button
         document.getElementById('syncBtn').addEventListener('click', () => this.syncToGoogleDrive());
+        
+        // Test credentials button
+        document.getElementById('testCredsBtn').addEventListener('click', () => this.testCredentials());
+        
+        // Sign out button
+        document.getElementById('signOutBtn').addEventListener('click', () => this.signOutGoogle());
+    }
+
+    signOutGoogle() {
+        if (syncManager.accessToken) {
+            // Revoke the token
+            google.accounts.oauth2.revoke(syncManager.accessToken, () => {
+                console.log('Token revoked');
+            });
+            
+            syncManager.accessToken = null;
+            if (typeof gapi !== 'undefined' && gapi.client) {
+                gapi.client.setToken(null);
+            }
+            
+            document.getElementById('signOutBtn').style.display = 'none';
+            this.showToast('Signed out from Google');
+        }
+    }
+
+    async testCredentials() {
+        const toast = document.getElementById('toast');
+        toast.innerHTML = 'Testing Google API setup...<br>Check console for details.';
+        toast.classList.add('show');
+        
+        console.log('=== TESTING GOOGLE API CREDENTIALS ===');
+        console.log('1. Checking if credentials are configured...');
+        
+        if (syncManager.CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
+            console.error('❌ CLIENT_ID not configured!');
+            console.log('Please edit sync.js and add your Client ID');
+            toast.innerHTML = '❌ CLIENT_ID not configured!<br>Check console and edit sync.js';
+            setTimeout(() => toast.classList.remove('show'), 5000);
+            return;
+        }
+        
+        if (syncManager.API_KEY === 'YOUR_GOOGLE_API_KEY') {
+            console.error('❌ API_KEY not configured!');
+            console.log('Please edit sync.js and add your API Key');
+            toast.innerHTML = '❌ API_KEY not configured!<br>Check console and edit sync.js';
+            setTimeout(() => toast.classList.remove('show'), 5000);
+            return;
+        }
+        
+        console.log('✅ Credentials configured');
+        console.log('   CLIENT_ID:', syncManager.CLIENT_ID.substring(0, 20) + '...');
+        console.log('   API_KEY:', syncManager.API_KEY.substring(0, 15) + '...');
+        
+        console.log('2. Testing Google API initialization...');
+        try {
+            await syncManager.initialize();
+            console.log('✅ Google API initialized successfully');
+            
+            console.log('3. Testing authentication...');
+            const authenticated = await syncManager.authenticate();
+            
+            if (authenticated) {
+                console.log('✅ Authentication successful!');
+                console.log('   Access token:', syncManager.accessToken.substring(0, 20) + '...');
+                document.getElementById('signOutBtn').style.display = 'inline-flex';
+                toast.innerHTML = '✅ Setup verified!<br>Ready to sync to Google Drive';
+                setTimeout(() => toast.classList.remove('show'), 3000);
+            } else {
+                console.log('❌ Authentication failed or cancelled');
+                toast.innerHTML = '❌ Authentication failed<br>Check console for details';
+                setTimeout(() => toast.classList.remove('show'), 5000);
+            }
+        } catch (error) {
+            console.error('❌ Error during testing:', error);
+            console.error('   Error details:', error.message);
+            toast.innerHTML = '❌ Test failed: ' + error.message + '<br>Check console';
+            setTimeout(() => toast.classList.remove('show'), 5000);
+        }
+        
+        console.log('=== TEST COMPLETE ===');
     }
 
     showView(viewName) {

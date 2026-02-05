@@ -2,52 +2,161 @@
 class SyncManager {
     constructor() {
         this.accessToken = null;
-        this.CLIENT_ID = '955894455124-f37m0nsetm42451rs0llred7fjemv4s2.apps.googleusercontent.com'; // You'll need to replace this
-        this.API_KEY = 'AIzaSyDDtGbcFYdggmToD_QNFXCD1kliPeObdUs'; // You'll need to replace this
+        this.tokenClient = null;
+        this.CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID'; // You'll need to replace this
+        this.API_KEY = 'YOUR_GOOGLE_API_KEY'; // You'll need to replace this
         this.SCOPES = 'https://www.googleapis.com/auth/drive.file';
         this.DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
+        this.gapiInited = false;
+        this.gisInited = false;
     }
 
     async initialize() {
-        // Load Google API
+        console.log('Initializing Google APIs...');
+        
+        // Load both GAPI and GIS
+        await Promise.all([
+            this.initializeGapiClient(),
+            this.initializeGisClient()
+        ]);
+        
+        console.log('Both Google APIs initialized successfully');
+    }
+
+    async initializeGapiClient() {
+        // Check if already initialized
+        if (this.gapiInited) {
+            console.log('GAPI already initialized');
+            return;
+        }
+
         return new Promise((resolve, reject) => {
+            // Check if script already exists
+            if (document.querySelector('script[src*="apis.google.com/js/api.js"]')) {
+                if (typeof gapi !== 'undefined') {
+                    gapi.load('client', async () => {
+                        await this.initGapiClient();
+                        resolve();
+                    });
+                } else {
+                    reject(new Error('GAPI script loaded but gapi is undefined'));
+                }
+                return;
+            }
+
             const script = document.createElement('script');
             script.src = 'https://apis.google.com/js/api.js';
             script.onload = () => {
-                gapi.load('client:auth2', () => {
-                    gapi.client.init({
-                        apiKey: this.API_KEY,
-                        clientId: this.CLIENT_ID,
-                        discoveryDocs: this.DISCOVERY_DOCS,
-                        scope: this.SCOPES
-                    }).then(() => {
-                        resolve();
-                    }).catch(reject);
+                console.log('GAPI script loaded');
+                gapi.load('client', async () => {
+                    await this.initGapiClient();
+                    resolve();
                 });
             };
-            script.onerror = reject;
-            document.body.appendChild(script);
+            script.onerror = (error) => {
+                console.error('Failed to load GAPI script', error);
+                reject(new Error('Failed to load GAPI script'));
+            };
+            document.head.appendChild(script);
         });
     }
 
-    async authenticate() {
+    async initGapiClient() {
         try {
-            const authInstance = gapi.auth2.getAuthInstance();
-            
-            if (!authInstance.isSignedIn.get()) {
-                await authInstance.signIn();
-            }
-            
-            const user = authInstance.currentUser.get();
-            const authResponse = user.getAuthResponse();
-            this.accessToken = authResponse.access_token;
-            
-            return true;
+            await gapi.client.init({
+                apiKey: this.API_KEY,
+                discoveryDocs: this.DISCOVERY_DOCS,
+            });
+            this.gapiInited = true;
+            console.log('GAPI client initialized');
         } catch (error) {
-            console.error('Authentication failed:', error);
-            app.showToast('Authentication failed. Please try again.');
-            return false;
+            console.error('Error initializing GAPI client:', error);
+            throw error;
         }
+    }
+
+    async initializeGisClient() {
+        // Check if already initialized
+        if (this.gisInited) {
+            console.log('GIS already initialized');
+            return;
+        }
+
+        return new Promise((resolve, reject) => {
+            // Check if script already exists
+            if (document.querySelector('script[src*="accounts.google.com/gsi/client"]')) {
+                if (typeof google !== 'undefined' && google.accounts) {
+                    this.createTokenClient();
+                    resolve();
+                } else {
+                    reject(new Error('GIS script loaded but google.accounts is undefined'));
+                }
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.onload = () => {
+                console.log('GIS script loaded');
+                this.createTokenClient();
+                resolve();
+            };
+            script.onerror = (error) => {
+                console.error('Failed to load GIS script', error);
+                reject(new Error('Failed to load GIS script'));
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    createTokenClient() {
+        this.tokenClient = google.accounts.oauth2.initTokenClient({
+            client_id: this.CLIENT_ID,
+            scope: this.SCOPES,
+            callback: '', // Will be set in authenticate()
+        });
+        this.gisInited = true;
+        console.log('GIS token client created');
+    }
+
+    async authenticate() {
+        return new Promise((resolve, reject) => {
+            try {
+                // Set the callback for this authentication request
+                this.tokenClient.callback = async (response) => {
+                    if (response.error !== undefined) {
+                        console.error('Authentication error:', response);
+                        app.showToast('Authentication failed: ' + response.error);
+                        reject(response);
+                        return;
+                    }
+                    
+                    this.accessToken = response.access_token;
+                    console.log('Authentication successful, token received');
+                    resolve(true);
+                };
+
+                // Check if we already have a valid token
+                if (this.accessToken && gapi.client.getToken()) {
+                    console.log('Using existing token');
+                    resolve(true);
+                    return;
+                }
+
+                // Request an access token
+                if (gapi.client.getToken() === null) {
+                    // Prompt the user to select a Google Account and ask for consent
+                    this.tokenClient.requestAccessToken({ prompt: 'consent' });
+                } else {
+                    // Skip display of account chooser and consent dialog for an existing session
+                    this.tokenClient.requestAccessToken({ prompt: '' });
+                }
+            } catch (error) {
+                console.error('Authentication failed:', error);
+                app.showToast('Authentication failed. Please try again.');
+                reject(error);
+            }
+        });
     }
 
     async createFolder(name, parentId = null) {
@@ -59,6 +168,9 @@ class SyncManager {
         if (parentId) {
             metadata.parents = [parentId];
         }
+
+        // Set the token for this request
+        gapi.client.setToken({ access_token: this.accessToken });
 
         const response = await gapi.client.drive.files.create({
             resource: metadata,
@@ -108,36 +220,69 @@ class SyncManager {
         syncBtn.disabled = true;
 
         try {
+            // Validate credentials first
+            if (this.CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID' || this.API_KEY === 'YOUR_GOOGLE_API_KEY') {
+                throw new Error('Please configure your Google API credentials in sync.js');
+            }
+
+            console.log('Step 1: Initializing Google API...');
             // Initialize Google API if not already done
             if (!this.accessToken) {
                 await this.initialize();
+                console.log('Step 2: Authenticating user...');
                 const authenticated = await this.authenticate();
                 if (!authenticated) {
                     syncBtn.classList.remove('syncing');
                     syncBtn.disabled = false;
                     return;
                 }
+                console.log('Step 3: Authentication successful');
             }
 
+            console.log('Step 4: Getting unsynced data...');
             const unsyncedData = await db.getUnsyncedData();
+            
+            console.log('Unsynced data:', {
+                addresses: unsyncedData.addresses.length,
+                floors: unsyncedData.floors.length,
+                rooms: unsyncedData.rooms.length,
+                photos: unsyncedData.photos.length
+            });
+
+            if (unsyncedData.addresses.length === 0 && 
+                unsyncedData.floors.length === 0 && 
+                unsyncedData.rooms.length === 0 && 
+                unsyncedData.photos.length === 0) {
+                syncBtn.classList.remove('syncing');
+                syncBtn.disabled = false;
+                app.showToast('Everything is already synced!');
+                return;
+            }
             
             let syncedCount = 0;
             
+            console.log('Step 5: Creating root folder...');
             // Create root folder for construction surveys if needed
             let rootFolderId = localStorage.getItem('constructionSurveyRootFolderId');
             if (!rootFolderId) {
                 rootFolderId = await this.createFolder('Construction Surveys');
                 localStorage.setItem('constructionSurveyRootFolderId', rootFolderId);
+                console.log('Root folder created:', rootFolderId);
+            } else {
+                console.log('Using existing root folder:', rootFolderId);
             }
 
+            console.log('Step 6: Syncing addresses...');
             // Sync addresses
             for (const address of unsyncedData.addresses) {
                 const folderName = `${address.streetAddress}, ${address.city}`;
+                console.log('Creating address folder:', folderName);
                 const addressFolderId = await this.createFolder(folderName, rootFolderId);
                 await db.markAsSynced('addresses', address.id, addressFolderId);
                 syncedCount++;
             }
 
+            console.log('Step 7: Syncing floors...');
             // Sync floors
             for (const floor of unsyncedData.floors) {
                 const address = await db.get('addresses', floor.addressId);
@@ -146,15 +291,18 @@ class SyncManager {
                 // If address wasn't synced yet, create folder now
                 if (!addressFolderId) {
                     const folderName = `${address.streetAddress}, ${address.city}`;
+                    console.log('Creating address folder for floor:', folderName);
                     addressFolderId = await this.createFolder(folderName, rootFolderId);
                     await db.markAsSynced('addresses', address.id, addressFolderId);
                 }
                 
+                console.log('Creating floor folder: Floor', floor.floorNumber);
                 const floorFolderId = await this.createFolder(`Floor ${floor.floorNumber}`, addressFolderId);
                 await db.markAsSynced('floors', floor.id, floorFolderId);
                 syncedCount++;
             }
 
+            console.log('Step 8: Syncing rooms...');
             // Sync rooms
             for (const room of unsyncedData.rooms) {
                 const floor = await db.get('floors', room.floorId);
@@ -167,21 +315,28 @@ class SyncManager {
                     
                     if (!addressFolderId) {
                         const folderName = `${address.streetAddress}, ${address.city}`;
+                        console.log('Creating address folder for room:', folderName);
                         addressFolderId = await this.createFolder(folderName, rootFolderId);
                         await db.markAsSynced('addresses', address.id, addressFolderId);
                     }
                     
+                    console.log('Creating floor folder for room: Floor', floor.floorNumber);
                     floorFolderId = await this.createFolder(`Floor ${floor.floorNumber}`, addressFolderId);
                     await db.markAsSynced('floors', floor.id, floorFolderId);
                 }
                 
+                console.log('Creating room folder:', room.roomName);
                 const roomFolderId = await this.createFolder(room.roomName, floorFolderId);
                 await db.markAsSynced('rooms', room.id, roomFolderId);
                 syncedCount++;
             }
 
+            console.log('Step 9: Syncing photos...');
             // Sync photos
-            for (const photo of unsyncedData.photos) {
+            for (let i = 0; i < unsyncedData.photos.length; i++) {
+                const photo = unsyncedData.photos[i];
+                console.log(`Uploading photo ${i + 1}/${unsyncedData.photos.length}`);
+                
                 const room = await db.get('rooms', photo.roomId);
                 let roomFolderId = room.driveFolderId;
                 
@@ -193,16 +348,19 @@ class SyncManager {
                     let addressFolderId = address.driveFolderId;
                     if (!addressFolderId) {
                         const folderName = `${address.streetAddress}, ${address.city}`;
+                        console.log('Creating address folder for photo:', folderName);
                         addressFolderId = await this.createFolder(folderName, rootFolderId);
                         await db.markAsSynced('addresses', address.id, addressFolderId);
                     }
                     
                     let floorFolderId = floor.driveFolderId;
                     if (!floorFolderId) {
+                        console.log('Creating floor folder for photo: Floor', floor.floorNumber);
                         floorFolderId = await this.createFolder(`Floor ${floor.floorNumber}`, addressFolderId);
                         await db.markAsSynced('floors', floor.id, floorFolderId);
                     }
                     
+                    console.log('Creating room folder for photo:', room.roomName);
                     roomFolderId = await this.createFolder(room.roomName, floorFolderId);
                     await db.markAsSynced('rooms', room.id, roomFolderId);
                 }
@@ -216,7 +374,9 @@ class SyncManager {
             syncBtn.classList.remove('syncing');
             syncBtn.disabled = false;
             
+            console.log('Sync completed successfully! Items synced:', syncedCount);
             if (syncedCount > 0) {
+                document.getElementById('signOutBtn').style.display = 'inline-flex';
                 app.showToast(`✅ Successfully synced ${syncedCount} items to Google Drive!`);
                 // Refresh current view
                 if (app.currentView === 'addressList') {
@@ -234,9 +394,29 @@ class SyncManager {
 
         } catch (error) {
             console.error('Sync error:', error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                response: error.result
+            });
             syncBtn.classList.remove('syncing');
             syncBtn.disabled = false;
-            app.showToast('Sync failed. Please try again.');
+            
+            let errorMessage = 'Sync failed. ';
+            if (error.message.includes('credentials')) {
+                errorMessage += 'Please check your API credentials.';
+            } else if (error.status === 401) {
+                errorMessage += 'Authentication failed. Please try again.';
+                this.accessToken = null; // Clear token to force re-auth
+            } else if (error.status === 403) {
+                errorMessage += 'Permission denied. Check API restrictions.';
+            } else if (error.status === 400) {
+                errorMessage += 'Invalid request. Check console for details.';
+            } else {
+                errorMessage += error.message || 'Unknown error.';
+            }
+            
+            app.showToast(errorMessage, 5000);
         }
     }
 }
