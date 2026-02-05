@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2563eb">
+    <title>Construction Survey App</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <h1>📋 Construction Survey</h1>
+            <div class="header-actions">
+                <span id="onlineStatus" class="status-badge offline">Offline</span>
+                <button id="syncBtn" class="btn btn-primary" disabled>
+                    <span class="sync-icon">🔄</span> Sync to Drive
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Address List View -->
+            <div id="addressListView" class="view active">
+                <div class="view-header">
+                    <h2>Addresses</h2>
+                    <button id="newAddressBtn" class="btn btn-success">+ New Address</button>
+                </div>
+                <div id="addressList" class="card-list"></div>
+            </div>
+
+            <!-- Address Detail View -->
+            <div id="addressDetailView" class="view">
+                <div class="view-header">
+                    <button id="backToAddresses" class="btn btn-secondary">← Back</button>
+                    <h2 id="addressTitle"></h2>
+                    <button id="newFloorBtn" class="btn btn-success">+ Add Floor</button>
+                </div>
+                <div id="floorList" class="card-list"></div>
+            </div>
+
+            <!-- Floor Detail View -->
+            <div id="floorDetailView" class="view">
+                <div class="view-header">
+                    <button id="backToFloors" class="btn btn-secondary">← Back</button>
+                    <h2 id="floorTitle"></h2>
+                    <button id="newRoomBtn" class="btn btn-success">+ Add Room</button>
+                </div>
+                <div id="roomList" class="card-list"></div>
+            </div>
+
+            <!-- Room Detail View -->
+            <div id="roomDetailView" class="view">
+                <div class="view-header">
+                    <button id="backToRooms" class="btn btn-secondary">← Back</button>
+                    <h2 id="roomTitle"></h2>
+                    <button id="capturePhotoBtn" class="btn btn-primary">📷 Capture Photo</button>
+                </div>
+                <div id="photoGrid" class="photo-grid"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for creating new address -->
+    <div id="addressModal" class="modal">
+        <div class="modal-content">
+            <h3>New Address</h3>
+            <form id="addressForm">
+                <input type="text" id="streetAddress" placeholder="Street Address" required>
+                <input type="text" id="city" placeholder="City" required>
+                <input type="text" id="state" placeholder="State" required>
+                <input type="text" id="zipCode" placeholder="ZIP Code" required>
+                <div class="modal-actions">
+                    <button type="button" id="cancelAddress" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for creating new floor -->
+    <div id="floorModal" class="modal">
+        <div class="modal-content">
+            <h3>New Floor</h3>
+            <form id="floorForm">
+                <input type="text" id="floorNumber" placeholder="Floor Number (e.g., 1, 2, Basement)" required>
+                <input type="text" id="floorNotes" placeholder="Notes (optional)">
+                <div class="modal-actions">
+                    <button type="button" id="cancelFloor" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for creating new room -->
+    <div id="roomModal" class="modal">
+        <div class="modal-content">
+            <h3>New Room</h3>
+            <form id="roomForm">
+                <input type="text" id="roomName" placeholder="Room Name (e.g., Master Bedroom)" required>
+                <input type="text" id="roomNotes" placeholder="Notes (optional)">
+                <div class="modal-actions">
+                    <button type="button" id="cancelRoom" class="btn btn-secondary">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div id="cameraModal" class="modal">
+        <div class="modal-content camera-modal">
+            <h3>Capture Photo</h3>
+            <div id="cameraContainer">
+                <video id="cameraVideo" autoplay playsinline></video>
+                <input type="file" id="fileInput" accept="image/*" capture="environment" style="display: none;">
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="cancelCamera" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="useFileInput" class="btn btn-primary">Choose from Gallery</button>
+                <button type="button" id="captureBtn" class="btn btn-success">📷 Take Photo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="db.js"></script>
+    <script src="app.js"></script>
+    <script src="sync.js"></script>
+    <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('Service Worker registered', reg))
+                .catch(err => console.log('Service Worker registration failed', err));
+        }
+    </script>
+</body>
+</html>
