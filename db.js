@@ -110,11 +110,17 @@ class Database {
     async getByIndex(storeName, indexName, value) {
         const tx = this.db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
-        const index = store.index(indexName);
-        const request = index.getAll(value);
+        
+        // Get all records and filter by index value in JavaScript
+        // This is necessary for non-string/number key types like booleans
+        const request = store.getAll();
         
         return new Promise((resolve, reject) => {
-            request.onsuccess = () => resolve(request.result);
+            request.onsuccess = () => {
+                const allRecords = request.result;
+                const filtered = allRecords.filter(record => record[indexName] === value);
+                resolve(filtered);
+            };
             request.onerror = () => reject(request.error);
         });
     }
