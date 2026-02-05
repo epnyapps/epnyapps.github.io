@@ -108,6 +108,8 @@ class Database {
     }
 
     async getByIndex(storeName, indexName, value) {
+        // Note: This method works best with numeric or string keys
+        // For boolean values, consider using getAll() with filter instead
         const tx = this.db.transaction(storeName, 'readonly');
         const store = tx.objectStore(storeName);
         const index = store.index(indexName);
@@ -173,10 +175,17 @@ class Database {
     }
 
     async getUnsyncedData() {
-        const addresses = await this.getByIndex('addresses', 'synced', false);
-        const floors = await this.getByIndex('floors', 'synced', false);
-        const rooms = await this.getByIndex('rooms', 'synced', false);
-        const photos = await this.getByIndex('photos', 'synced', false);
+        // Get all items and filter by synced property
+        // Using getAll and filter instead of index query because boolean indexing can be problematic
+        const allAddresses = await this.getAll('addresses');
+        const allFloors = await this.getAll('floors');
+        const allRooms = await this.getAll('rooms');
+        const allPhotos = await this.getAll('photos');
+        
+        const addresses = allAddresses.filter(item => item.synced === false);
+        const floors = allFloors.filter(item => item.synced === false);
+        const rooms = allRooms.filter(item => item.synced === false);
+        const photos = allPhotos.filter(item => item.synced === false);
         
         return { addresses, floors, rooms, photos };
     }
