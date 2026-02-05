@@ -3,8 +3,8 @@ class SyncManager {
     constructor() {
         this.accessToken = null;
         this.tokenClient = null;
-        this.CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID'; // You'll need to replace this
-        this.API_KEY = 'YOUR_GOOGLE_API_KEY'; // You'll need to replace this
+        this.CLIENT_ID = '955894455124-f37m0nsetm42451rs0llred7fjemv4s2.apps.googleusercontent.com'; // You'll need to replace this
+        this.API_KEY = 'AIzaSyDDtGbcFYdggmToD_QNFXCD1kliPeObdUs'; // You'll need to replace this
         this.SCOPES = 'https://www.googleapis.com/auth/drive.file';
         this.DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
         this.gapiInited = false;
